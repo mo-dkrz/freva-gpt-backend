@@ -88,7 +88,6 @@ RUN rm /app/gebco_2024.zip
 COPY Cargo.toml /app/Cargo.toml
 
 # Copy over the secrets file to have access to the openai account and so that the backend is configured correctly
-COPY .env /app/.env
 # Also copy over the environemnt example file to have a reference
 COPY .env.example /app/.env.example
 
