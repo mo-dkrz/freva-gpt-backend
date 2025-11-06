@@ -44,7 +44,7 @@ RUN echo "conda activate env" >> ~/.bashrc
 RUN pip install uv
 
 # All packages that were previously installed with conda and can be installed with uv because they are on PYPI.
-RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 cartopy contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
+RUN /opt/conda/bin/conda run -n env uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 cartopy contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
 
 # These libraries cannot be installed by uv, so we use conda.
 RUN conda install --yes -c conda-forge -n env pytorch
@@ -64,16 +64,16 @@ WORKDIR /app
 RUN git config --global user.email "freva@dkrz.de"
 RUN git config --global user.name "clint"
 RUN git clone --recurse-submodules https://github.com/CROCODILE-CESM/CrocoDash.git
-RUN source activate env && uv pip install -e CrocoDash/CrocoDash/rm6/ \
+RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/rm6/ \
     -e CrocoDash/CrocoDash/visualCaseGen/external/ipyfilechooser/ \
     -e CrocoDash/CrocoDash/visualCaseGen/external/mom6_bathy/ \
     -e CrocoDash/CrocoDash/visualCaseGen/ \
     "myst_parser>=4.0.0,<4.1.0" \
     -e CrocoDash/
-RUN source activate env && pytest CrocoDash/tests/test_installation.py
+RUN /opt/conda/bin/conda run -n env pytest CrocoDash/tests/test_installation.py
 RUN git clone https://github.com/ESCOMP/CESM.git
 RUN git -C CESM checkout cesm3_0_beta03
-RUN source activate env && ./CESM/bin/git-fleximod -C /app/CESM/ update
+RUN /opt/conda/bin/conda run -n env ./CESM/bin/git-fleximod -C /app/CESM/ update
 ENV CIME_MACHINE="ubuntu-latest"
 # Curl has been moved to the top of the Dockerfile to be cache-friendly.
 RUN mkdir -p /app/CrocoDash/inputs/gebco
