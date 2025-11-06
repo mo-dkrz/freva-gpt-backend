@@ -1,0 +1,36 @@
+name: Build image freva-gpt2-backend
+
+on:
+  push:
+    branches:
+        - main
+  pull_request:
+    branches:
+        - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Podman and podman-compose
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install podman python3-pip
+        pip3 install podman-compose
+    
+    - name: Create .env file for build
+      run: cp .env.example .env
+    
+    - name: Build with podman-compose
+      run: podman-compose build freva-gpt2-backend
+      env:
+        INSTANCE_NAME: ci
+    
+    - name: Test image was built
+      run: podman images | grep freva-gpt2-backend
