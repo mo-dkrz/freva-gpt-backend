@@ -1,4 +1,4 @@
-name: Build image freva-gpt2-backend
+name: Build with image freva-gpt2-backend
 
 on:
   push:
@@ -11,26 +11,49 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         submodules: recursive
+
+    - name: Check available space before cleanup
+      run: df -h
     
-    - name: Install Podman and podman-compose
+    - name: Free up disk to be able to commit large image
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf /usr/local/lib/android
+        sudo apt-get clean
+        docker system prune -af || true
+        df -h
+
+    - name: Install Podman
       run: |
         sudo apt-get update
-        sudo apt-get -y install podman python3-pip
-        pip3 install podman-compose
-    
+        sudo apt-get -y install podman
+        
+    - name: Configure Podman for CI
+      run: |
+        mkdir -p ~/.config/containers
+        echo '[storage]' > ~/.config/containers/storage.conf
+        echo 'driver = "vfs"' >> ~/.config/containers/storage.conf
+        podman system reset -f
+
     - name: Create .env file for build
-      run: cp .env.example .env
-    
-    - name: Build with podman-compose
-      run: podman-compose build freva-gpt2-backend
-      env:
-        INSTANCE_NAME: ci
-    
-    - name: Test image was built
-      run: podman images | grep freva-gpt2-backend
+      run: |
+        cp .env.example .env
+        echo "INSTANCE_NAME=ci" >> .env
+
+    - name: Build with Podman
+      run: |
+        podman build \
+          -f dockerfiles/chatbot-backend/Dockerfile \
+          -t freva-gpt2-backend-ci:latest \
+          .
+
+    - name: Verify image was built
+      run: podman images freva-gpt2-backend-ci

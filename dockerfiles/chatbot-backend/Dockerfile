@@ -64,12 +64,12 @@ WORKDIR /app
 RUN git config --global user.email "freva@dkrz.de"
 RUN git config --global user.name "clint"
 RUN git clone --recurse-submodules https://github.com/CROCODILE-CESM/CrocoDash.git
-RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/rm6/ \
-    -e CrocoDash/CrocoDash/visualCaseGen/external/ipyfilechooser/ \
-    -e CrocoDash/CrocoDash/visualCaseGen/external/mom6_bathy/ \
-    -e CrocoDash/CrocoDash/visualCaseGen/ \
-    "myst_parser>=4.0.0,<4.1.0" \
-    -e CrocoDash/
+RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/rm6/
+RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/visualCaseGen/external/ipyfilechooser/
+RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/visualCaseGen/external/mom6_bathy/
+RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/visualCaseGen/
+RUN /opt/conda/bin/conda run -n env uv pip install "myst_parser>=4.0.0,<4.1.0"
+RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/
 RUN /opt/conda/bin/conda run -n env pytest CrocoDash/tests/test_installation.py
 RUN git clone https://github.com/ESCOMP/CESM.git
 RUN git -C CESM checkout cesm3_0_beta03
