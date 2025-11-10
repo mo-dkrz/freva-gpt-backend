@@ -45,14 +45,32 @@ RUN echo "conda activate env" >> ~/.bashrc
 RUN pip install uv
 
 # All packages that were previously installed with conda and can be installed with uv because they are on PYPI.
-RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 cartopy contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
+RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
 
 # These libraries cannot be installed by uv, so we use conda.
 RUN conda install --yes -c conda-forge -n env pytorch
-
+RUN conda install --yes -c conda-forge -n env cartopy
 # Create app directory
 RUN mkdir /app
 WORKDIR /app
+
+# ========================================
+# Stage: gebco-downloader (architecture-independent)
+# This stage downloads GEBCO once for all architectures
+# ========================================
+FROM fedora:latest AS gebco-downloader
+
+RUN dnf install -y curl
+
+WORKDIR /data
+
+# Download the Bathymetry dataset (GEBCO 2024) for Crocodash with retry and resume
+RUN echo "Downloading GEBCO dataset (this happens once for all architectures)..." && \
+    curl --retry 5 --retry-delay 10 --retry-max-time 1800 \
+    --connect-timeout 60 --max-time 3600 -C - -L \
+    https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ \
+    -o gebco_2024.zip && \
+    echo "GEBCO download complete. Size: $(du -h gebco_2024.zip | cut -f1)"
 
 # ========================================
 # Stage: with-crocodash
@@ -62,8 +80,9 @@ FROM base AS with-crocodash
 # Install unzip for Crocodash
 RUN dnf install unzip -y
 
-# Download the Bathymatry dataset (GEBCO 2024) for Crocodash
-RUN curl https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ -o /app/gebco_2024.zip
+# Copy the pre-downloaded GEBCO file from the gebco-downloader stage
+# This is a fast COPY operation, not a download!
+COPY --from=gebco-downloader /data/gebco_2024.zip /app/gebco_2024.zip
 
 # Install necessary dependencies for CrocoDash, not found on pypi.
 RUN conda install --yes -c conda-forge -n env "esmpy>=8.6.1,<8.7.0"
