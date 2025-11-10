@@ -89,7 +89,9 @@ jobs:
         with:
           context: .
           file: dockerfiles/chatbot-backend/Dockerfile
-          target: ${{ matrix.target }}
+          target: final
+          build-args: |
+            BUILD_TARGET=${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

@@ -1,3 +1,4 @@
+ARG BUILD_TARGET=without-crocodash
 # Pull from fedora because alpine and ubuntu both have issues with the python environment or podman
 FROM fedora:latest AS base
 
