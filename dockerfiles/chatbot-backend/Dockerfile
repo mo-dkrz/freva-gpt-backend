@@ -94,6 +94,8 @@ RUN conda install --yes -c conda-forge -n env "esmpy>=8.6.1,<8.7.0"
 
 # set up CrocoDash and CESM
 # set up git email and user name
+
+RUN conda install --yes -c conda-forge -n env z3-solver
 RUN git config --global user.email "freva@dkrz.de"
 RUN git config --global user.name "clint"
 RUN git clone --recurse-submodules https://github.com/CROCODILE-CESM/CrocoDash.git
