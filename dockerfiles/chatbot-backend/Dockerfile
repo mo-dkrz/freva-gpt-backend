@@ -1,5 +1,5 @@
 # Pull from fedora because alpine and ubuntu both have issues with the python environment or podman
-FROM fedora:latest
+FROM fedora:latest AS base
 
 # ---------------------
 # General installs
@@ -11,19 +11,20 @@ RUN dnf install -y rust cargo
 # Install necessary dependencies for miniconda
 RUN dnf install -y curl bzip2 awk git
 
-# Install unzip for Crocodash
-RUN dnf install unzip -y
-
-# Download the Bathymatry dataset (GEBCO 2024) for Crocodash. It's up here to be cache-friendly.
-RUN mkdir /app
-RUN curl https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ -o /app/gebco_2024.zip
-
 # -------------------
 # Conda setup
 # -------------------
 
-# Download and install Miniconda
-RUN curl -Lo /tmp/miniforge.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh && \
+# Download and install Miniconda (architecture-aware)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        CONDA_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        CONDA_ARCH="aarch64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    curl -Lo /tmp/miniforge.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-${CONDA_ARCH}.sh && \
     bash /tmp/miniforge.sh -b -p /opt/conda && \
     rm /tmp/miniforge.sh
 
@@ -44,16 +45,28 @@ RUN echo "conda activate env" >> ~/.bashrc
 RUN pip install uv
 
 # All packages that were previously installed with conda and can be installed with uv because they are on PYPI.
-RUN /opt/conda/bin/conda run -n env uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 cartopy contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
+RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 cartopy contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
 
 # These libraries cannot be installed by uv, so we use conda.
 RUN conda install --yes -c conda-forge -n env pytorch
-# Install necessary dependencies for CrocoDash, also not found on pypi.
-RUN conda install --yes -c conda-forge -n env "esmpy>=8.6.1,<8.7.0"
 
-# The installs and configuration are done, we can enter the /app directory.
-# Also note that Crocodash needs it to be set.
+# Create app directory
+RUN mkdir /app
 WORKDIR /app
+
+# ========================================
+# Stage: with-crocodash
+# ========================================
+FROM base AS with-crocodash
+
+# Install unzip for Crocodash
+RUN dnf install unzip -y
+
+# Download the Bathymatry dataset (GEBCO 2024) for Crocodash
+RUN curl https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ -o /app/gebco_2024.zip
+
+# Install necessary dependencies for CrocoDash, not found on pypi.
+RUN conda install --yes -c conda-forge -n env "esmpy>=8.6.1,<8.7.0"
 
 # ----------------------
 # Crocodash setup
@@ -64,21 +77,32 @@ WORKDIR /app
 RUN git config --global user.email "freva@dkrz.de"
 RUN git config --global user.name "clint"
 RUN git clone --recurse-submodules https://github.com/CROCODILE-CESM/CrocoDash.git
-RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/rm6/
-RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/visualCaseGen/external/ipyfilechooser/
-RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/visualCaseGen/external/mom6_bathy/
-RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/CrocoDash/visualCaseGen/
-RUN /opt/conda/bin/conda run -n env uv pip install "myst_parser>=4.0.0,<4.1.0"
-RUN /opt/conda/bin/conda run -n env uv pip install -e CrocoDash/
-RUN /opt/conda/bin/conda run -n env pytest CrocoDash/tests/test_installation.py
+RUN source activate env && uv pip install -e CrocoDash/CrocoDash/rm6/ \
+    -e CrocoDash/CrocoDash/visualCaseGen/external/ipyfilechooser/ \
+    -e CrocoDash/CrocoDash/visualCaseGen/external/mom6_bathy/ \
+    -e CrocoDash/CrocoDash/visualCaseGen/ \
+    "myst_parser>=4.0.0,<4.1.0" \
+    -e CrocoDash/
+RUN source activate env && pytest CrocoDash/tests/test_installation.py
 RUN git clone https://github.com/ESCOMP/CESM.git
 RUN git -C CESM checkout cesm3_0_beta03
-RUN /opt/conda/bin/conda run -n env ./CESM/bin/git-fleximod -C /app/CESM/ update
+RUN source activate env && ./CESM/bin/git-fleximod -C /app/CESM/ update
 ENV CIME_MACHINE="ubuntu-latest"
-# Curl has been moved to the top of the Dockerfile to be cache-friendly.
 RUN mkdir -p /app/CrocoDash/inputs/gebco
 RUN unzip /app/gebco_2024.zip -d /app/CrocoDash/inputs/gebco
 RUN rm /app/gebco_2024.zip
+
+# ========================================
+# Stage: without-crocodash (default)
+# ========================================
+FROM base AS without-crocodash
+
+# No CrocoDash setup - skip directly to preparations
+
+# ========================================
+# Final stage (common for both targets)
+# ========================================
+FROM ${BUILD_TARGET:-without-crocodash} AS final
 
 # -------------------------
 # Preparations for launch
@@ -88,6 +112,7 @@ RUN rm /app/gebco_2024.zip
 COPY Cargo.toml /app/Cargo.toml
 
 # Copy over the secrets file to have access to the openai account and so that the backend is configured correctly
+# COPY .env /app/.env
 # Also copy over the environemnt example file to have a reference
 COPY .env.example /app/.env.example
 

@@ -4,7 +4,6 @@ on:
   push:
     tags:
         - 'V*'
-        - 'v*'
   pull_request:
     branches:
         - main
@@ -12,13 +11,25 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - variant: base
+            target: without-crocodash
+            image-suffix: ""
+            needs-disk-space: false
+          - variant: crocodash
+            target: with-crocodash
+            image-suffix: "-crocodash"
+            needs-disk-space: true
 
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: free up disk space # necessary since Crocodash is quite large and the default runner has limited space
+      - name: free up disk space
+        if: matrix.needs-disk-space
         run: |
           df -h
           sudo rm -rf /usr/share/dotnet
@@ -46,7 +57,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to GitHub Container
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -66,22 +77,24 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/freva-gpt2-backend
+          images: ghcr.io/${{ github.repository_owner }}/freva-gpt2-backend${{ matrix.image-suffix }}
           tags: |
             type=ref,event=pr
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
-      - name: Build and push image
+      - name: Build and push image (${{ matrix.variant }})
         uses: docker/build-push-action@v5
         with:
           context: .
           file: dockerfiles/chatbot-backend/Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
           no-cache: ${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Verify image
