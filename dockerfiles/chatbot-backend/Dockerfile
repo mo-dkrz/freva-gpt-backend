@@ -44,12 +44,12 @@ RUN echo "conda activate env" >> ~/.bashrc
 # Uv is a much faster package manager and installer, we'll use it over conda where possible to cut time.
 RUN pip install uv
 
+RUN conda install --yes -c conda-forge -n env cartopy
 # All packages that were previously installed with conda and can be installed with uv because they are on PYPI.
 RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
 
 # These libraries cannot be installed by uv, so we use conda.
 RUN conda install --yes -c conda-forge -n env pytorch
-RUN conda install --yes -c conda-forge -n env cartopy
 # Create app directory
 RUN mkdir /app
 WORKDIR /app
