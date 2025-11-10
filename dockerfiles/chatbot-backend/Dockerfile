@@ -45,7 +45,8 @@ RUN echo "conda activate env" >> ~/.bashrc
 # Uv is a much faster package manager and installer, we'll use it over conda where possible to cut time.
 RUN pip install uv
 
-RUN conda install --yes -c conda-forge -n env cartopy scipy
+# the new arch requires the following packages via conda to avoid build issues
+RUN conda install --yes -c conda-forge -n env cartopy scipy z3-solver
 # All packages that were previously installed with conda and can be installed with uv because they are on PYPI.
 RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf netcdf4 contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
 
@@ -95,7 +96,6 @@ RUN conda install --yes -c conda-forge -n env "esmpy>=8.6.1,<8.7.0"
 # set up CrocoDash and CESM
 # set up git email and user name
 
-RUN conda install --yes -c conda-forge -n env z3-solver
 RUN git config --global user.email "freva@dkrz.de"
 RUN git config --global user.name "clint"
 RUN git clone --recurse-submodules https://github.com/CROCODILE-CESM/CrocoDash.git

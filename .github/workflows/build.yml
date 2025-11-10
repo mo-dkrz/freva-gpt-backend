@@ -19,10 +19,12 @@ jobs:
             target: without-crocodash
             image-suffix: ""
             needs-disk-space: false
+            platforms: linux/amd64,linux/arm64
           - variant: crocodash
             target: with-crocodash
             image-suffix: "-crocodash"
             needs-disk-space: true
+            platforms: linux/amd64  
 
     permissions:
       contents: read
@@ -92,7 +94,7 @@ jobs:
           target: final
           build-args: |
             BUILD_TARGET=${{ matrix.target }}
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platforms }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
