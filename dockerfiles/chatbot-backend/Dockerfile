@@ -44,9 +44,9 @@ RUN echo "conda activate env" >> ~/.bashrc
 # Uv is a much faster package manager and installer, we'll use it over conda where possible to cut time.
 RUN pip install uv
 
-RUN conda install --yes -c conda-forge -n env cartopy
+RUN conda install --yes -c conda-forge -n env cartopy scipy
 # All packages that were previously installed with conda and can be installed with uv because they are on PYPI.
-RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf scipy netcdf4 contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
+RUN source activate env && uv pip install freva-client>=2509.2.0 dill numpy matplotlib pandas xarray xesmf netcdf4 contourpy geopy aiohttp requests scikit-learn geopandas healpy easygems astropy
 
 # These libraries cannot be installed by uv, so we use conda.
 RUN conda install --yes -c conda-forge -n env pytorch
@@ -60,7 +60,7 @@ WORKDIR /app
 # ========================================
 FROM fedora:latest AS gebco-downloader
 
-RUN dnf install -y curl
+RUN dnf install -y curl cmake bzip2 awk git
 
 WORKDIR /data
 
@@ -121,6 +121,7 @@ FROM base AS without-crocodash
 # ========================================
 # Final stage (common for both targets)
 # ========================================
+ARG BUILD_TARGET=without-crocodash
 FROM ${BUILD_TARGET:-without-crocodash} AS final
 
 # -------------------------
