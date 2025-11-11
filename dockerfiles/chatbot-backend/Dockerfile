@@ -60,17 +60,9 @@ WORKDIR /app
 # ========================================
 FROM fedora:latest AS gebco-downloader
 
-RUN dnf install -y curl cmake bzip2 awk git
+RUN dnf install -y curl
 
 WORKDIR /data
-
-# Download the Bathymetry dataset (GEBCO 2024) for Crocodash with retry and resume
-RUN echo "Downloading GEBCO dataset (this happens once for all architectures)..." && \
-    curl --retry 5 --retry-delay 10 --retry-max-time 1800 \
-    --connect-timeout 60 --max-time 3600 -C - -L \
-    https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ \
-    -o gebco_2024.zip && \
-    echo "GEBCO download complete. Size: $(du -h gebco_2024.zip | cut -f1)"
 
 # ========================================
 # Stage: with-crocodash
@@ -80,9 +72,9 @@ FROM base AS with-crocodash
 # Install unzip for Crocodash
 RUN dnf install unzip -y
 
-# Copy the pre-downloaded GEBCO file from the gebco-downloader stage
-# This is a fast COPY operation, not a download!
-COPY --from=gebco-downloader /data/gebco_2024.zip /app/gebco_2024.zip
+# Download the Bathymetry dataset (GEBCO 2024) for Crocodash
+RUN curl -L https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ -o /app/gebco_2024.zip
+
 
 # Install necessary dependencies for CrocoDash, not found on pypi.
 RUN conda install --yes -c conda-forge -n env "esmpy>=8.6.1,<8.7.0"
