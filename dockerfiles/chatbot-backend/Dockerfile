@@ -54,12 +54,6 @@ RUN conda install --yes -c conda-forge -n env pytorch
 RUN mkdir /app
 WORKDIR /app
 
-# ========================================
-# Stage: gebco-downloader (architecture-independent)
-# This stage downloads GEBCO once for all architectures
-# ========================================
-FROM fedora:latest AS gebco-downloader
-
 RUN dnf install -y curl
 
 WORKDIR /data
