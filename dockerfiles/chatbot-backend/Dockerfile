@@ -7,10 +7,7 @@ FROM fedora:latest AS base
 # ---------------------
 
 # Install Rust
-RUN dnf install -y rust cargo
-
-# Install necessary dependencies for miniconda
-RUN dnf install -y curl
+RUN dnf install -y rust cargo curl
 
 # -------------------
 # Conda setup
@@ -54,17 +51,14 @@ RUN conda install --yes -c conda-forge -n env pytorch
 RUN mkdir /app
 WORKDIR /app
 
-RUN dnf install -y curl
-
-WORKDIR /data
-
 # ========================================
 # Stage: with-crocodash
 # ========================================
 FROM base AS with-crocodash
 
 # Install unzip for Crocodash
-RUN dnf install unzip -y
+RUN dnf install -y unzip git && \
+    dnf clean all
 
 # Download the Bathymetry dataset (GEBCO 2024) for Crocodash
 RUN curl -L https://www.bodc.ac.uk/data/open_download/gebco/gebco_2024/zip/ -o /app/gebco_2024.zip
